@@ -21,7 +21,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>. 
 //
 
-module sdram (
+module scandoubler_sdram (
 	// interface to the MT48LC16M16 chip
 	inout  wire [15:0] sd_data,    // 16 bit bidirectional data bus
 	output reg [12:0]  sd_addr,    // 13 bit multiplexed address bus

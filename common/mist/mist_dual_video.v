@@ -157,7 +157,7 @@ scandoubler #(SD_HCNT_WIDTH, COLOR_DEPTH, SD_HSCNT_WIDTH, 8) scandoubler
 );
 
 // SDRAM controller for screen rotation
-sdram sdram_ctrl (
+scandoubler_sdram sdram_ctrl (
 	.sd_data(SDRAM_DQ),  // 16 bit bidirectional data bus
 	.sd_addr(SDRAM_A),   // 13 bit multiplexed address bus
 	.sd_dqm({SDRAM_DQMH,SDRAM_DQML}), // two byte masks
