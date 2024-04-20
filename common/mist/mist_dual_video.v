@@ -27,9 +27,11 @@ module mist_dual_video
 	input        ypbpr,
 	// Rotate OSD [0] - rotate [1] - left or right
 	input  [1:0] rotate,
+	// Rotate screen (needs SDRAM connection)
+	input  [1:0] rotate_screen,
 	// filters for rotation
-	input        hfilter,
-	input        vfilter,
+	input        rotate_hfilter,
+	input        rotate_vfilter,
 	// composite-like blending
 	input        blend,
 
@@ -86,7 +88,6 @@ parameter SD_HSCNT_WIDTH = 12;
 parameter OUT_COLOR_DEPTH = 6;  // 1-8
 parameter BIG_OSD = 1'b0;       // 16 line OSD
 parameter VIDEO_CLEANER = 1'b0; // Align VSync/VBlank to HSync/HBlank edges. HDMI usually needs it.
-parameter ROTATE_OSD = 1'b1;    // Rotate only the OSD or the whole screen?
 
 wire  [7:0] SD_R_O;
 wire  [7:0] SD_G_O;
@@ -119,9 +120,9 @@ scandoubler #(SD_HCNT_WIDTH, COLOR_DEPTH, SD_HSCNT_WIDTH, 8) scandoubler
 	.bypass     ( 1'b0       ),
 	.ce_divider ( ce_divider ),
 	.scanlines  ( scanlines  ),
-	.rotation   ( ROTATE_OSD ? 2'b00 : rotate ),
-	.hfilter    ( hfilter    ),
-	.vfilter    ( vfilter    ),
+	.rotation   ( rotate_screen  ),
+	.hfilter    ( rotate_hfilter ),
+	.vfilter    ( rotate_vfilter ),
 	.pixel_ena_x1 ( pixel_ena_x1 ),
 	.pixel_ena_x2 ( pixel_ena_x2 ),
 	.hb_in      ( HBlank     ),
@@ -224,7 +225,7 @@ wire [OUT_COLOR_DEPTH-1:0] vga_osd_b_o;
 osd #(OSD_X_OFFSET, OSD_Y_OFFSET, OSD_COLOR, OSD_AUTO_CE, USE_BLANKS, OUT_COLOR_DEPTH, BIG_OSD) vga_osd
 (
 	.clk_sys ( clk_sys     ),
-	.rotate  ( ROTATE_OSD ? rotate : 2'b00 ),
+	.rotate  ( rotate      ),
 	.ce      ( vga_pixel_ena ),
 	.SPI_DI  ( SPI_DI      ),
 	.SPI_SCK ( SPI_SCK     ),

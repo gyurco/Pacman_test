@@ -148,6 +148,7 @@ localparam bit BIG_OSD = 0;
 `endif
 
 // remove this if the 2nd chip is actually used
+
 `ifdef DUAL_SDRAM
 assign SDRAM2_A = 13'hZZZZ;
 assign SDRAM2_BA = 0;
@@ -164,13 +165,18 @@ assign SDRAM2_nWE = 1;
 
 `include "build_id.v"
 
+//           1111111111222222222233333333334444444444555555555566
+// 01234567890123456789012345678901234567890123456789012345678901
+// 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+
 localparam CONF_STR = {
 	"PACMAN;;",
-	"O2,Rotate Controls,Off,On;",
-	"O34,Orientation,Vertical,Anticlockwise,Clockwise;",
-//	"O34,Scanlines,Off,25%,50%,75%;",
-	"O5,Blend,Off,On;",
-	"O6,Flip,Off,On;",
+	"O1,Rotate Controls,Off,On;",
+	"O23,Orientation,Vertical,Anticlockwise,Clockwise;",
+	"O45,Scanlines,Off,25%,50%,75%;",
+	"O6,Blend,Off,On;",
+	"O7,Flip,Off,On;",
+	"Om,Rotation filter,Off,On;",
 	`SEP
 	"DIP;",
 	`SEP
@@ -178,10 +184,12 @@ localparam CONF_STR = {
 	"V,v1.20.",`BUILD_DATE
 };
 
-wire        rotate = status[2];
-wire  [1:0] scanlines = status[4:3];
-wire        blend = status[5];
-wire        flip = status[6];
+wire        rotate = status[1];
+wire  [1:0] rotate_screen = status[3:2];
+wire  [1:0] scanlines = status[5:4];
+wire        blend = status[6];
+wire        flip = status[7];
+wire        rotate_filter = status[48];
 
 assign LED = ~ioctl_downl;
 assign AUDIO_R = AUDIO_L;
@@ -425,21 +433,7 @@ pacman pacman(
 	.ENA_1M79(ce_1m79)
 	);
 
-wire vidin_req;
-wire vidin_ack;
-wire [9:0] vidin_row;
-wire [9:0] vidin_col;
-wire [15:0] vidin_d;
-wire vidin_frame;
-
-wire vidout_req;
-wire vidout_ack;
-wire [9:0] vidout_row;
-wire [9:0] vidout_col;
-wire [15:0] vidout_d;
-wire vidout_frame;
-
-mist_dual_video #(.COLOR_DEPTH(3),.OUT_COLOR_DEPTH(VGA_BITS),.USE_BLANKS(1'b1),.BIG_OSD(BIG_OSD),.SD_HCNT_WIDTH(10),.ROTATE_OSD(1'b0)) mist_video(
+mist_dual_video #(.COLOR_DEPTH(3),.OUT_COLOR_DEPTH(VGA_BITS),.USE_BLANKS(1'b1),.BIG_OSD(BIG_OSD),.SD_HCNT_WIDTH(10)) mist_video(
 	.clk_sys(clk_sdram),
 	.SPI_SCK(SPI_SCK),
 	.SPI_SS3(SPI_SS3),
@@ -451,15 +445,16 @@ mist_dual_video #(.COLOR_DEPTH(3),.OUT_COLOR_DEPTH(VGA_BITS),.USE_BLANKS(1'b1),.
 	.VBlank(vb),
 	.HSync(~hs),
 	.VSync(~vs),
-	.rotate({~flip,rotate}),
+	.rotate({~flip,rotate}), // OSD-only
+	.rotate_screen(rotate_screen),
+	.rotate_hfilter(rotate_filter),
+	.rotate_vfilter(rotate_filter),
 	.scandoubler_disable(scandoublerD),
 	.scanlines(scanlines),
 	.ce_divider(4'hf),
 	.blend(blend),
 	.ypbpr(ypbpr),
 	.no_csync(no_csync),
-	.hfilter(1'b1),
-	.vfilter(1'b1),
 `ifdef USE_HDMI
 	.HDMI_R(HDMI_R),
 	.HDMI_G(HDMI_G),
@@ -564,7 +559,7 @@ arcade_inputs inputs (
 	.joystick_0  ( joystick_0  ),
 	.joystick_1  ( joystick_1  ),
 	.rotate      ( rotate      ),
-	.orientation ( {~flip, ~mod_ponp} ),
+	.orientation ( {~flip, ~mod_ponp ^ |rotate_screen} ),
 	.joyswap     ( 1'b0        ),
 	.oneplayer   ( 1'b1        ),
 	.controls    ( {m_tilt, m_coin4, m_coin3, m_coin2, m_coin1, m_four_players, m_three_players, m_two_players, m_one_player} ),
