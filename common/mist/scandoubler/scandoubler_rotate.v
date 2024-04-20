@@ -36,9 +36,9 @@ module scandoubler_rotate
 	input        vfilter,
 
 	// Pixelclock
-	input            pe_in,
-	input            pe_out,
-	input            ppe_out,
+	input        pe_in,
+	input        pe_out,
+	input        ppe_out,
 
 	// incoming video interface
 	input        hb_in,
@@ -224,11 +224,12 @@ reg fetchbuffer;
 always @(posedge clk_sys) begin
 	hb_sd_stb<=1'b0;
 	vs_sd_stb<=1'b0;
+
 	hb_sd_d<=hb_sd;
 	vs_sd_d<=vs_sd;
 
 	sd_ypos <= rotation[0] ? vi_whole : in_xpos_max-vi_whole - 1'd1;
-	
+
 	if(!vb_sd && !hb_sd_d && hb_sd) begin // Increment row on hblank
 		hb_sd_stb<=1'b1;
 	end
@@ -248,7 +249,7 @@ always @(posedge clk_sys) begin
 
 	if(fetch && fetch_xpos==in_ypos_max)
 		fetch<=1'b0;
-	
+
 	if(vidout_ack) begin
 		fetch_xpos<=fetch_xpos+10'd1;
 		if(fetchbuffer)
@@ -256,7 +257,7 @@ always @(posedge clk_sys) begin
 		else
 			linebuffer2[fetch_xpos]<=vidout_d;
 	end
-	
+
 end
 
 assign vidout_row = sd_ypos;
@@ -314,6 +315,7 @@ always @(posedge clk_sys) begin
 		row2_pix1<=linebuffer1[hi_whole];
 		row1_pix1<=linebuffer2[hi_whole];
 	end
+	if (hi_whole > in_ypos_max) {row1_pix1, row2_pix1} <= 0;
 
 	if(hi_step) begin
 		row1_pix2<=row1_pix1;
@@ -354,10 +356,9 @@ scandoubler_rgb_interp rgbinterp_v
 	.rgb_out(final_rgb565)
 );
 
-
 scandoubler_scaledepth #(.IN_DEPTH(5),.OUT_DEPTH(OUT_COLOR_DEPTH)) scaleout_r (.d(final_rgb565[15:11]),.q(r_out));
-scandoubler_scaledepth #(.IN_DEPTH(6),.OUT_DEPTH(OUT_COLOR_DEPTH)) scaleout_g (.d(final_rgb565[10:5]),.q(g_out));
-scandoubler_scaledepth #(.IN_DEPTH(5),.OUT_DEPTH(OUT_COLOR_DEPTH)) scaleout_b (.d(final_rgb565[4:0]),.q(b_out));
+scandoubler_scaledepth #(.IN_DEPTH(6),.OUT_DEPTH(OUT_COLOR_DEPTH)) scaleout_g (.d(final_rgb565[10: 5]),.q(g_out));
+scandoubler_scaledepth #(.IN_DEPTH(5),.OUT_DEPTH(OUT_COLOR_DEPTH)) scaleout_b (.d(final_rgb565[ 4: 0]),.q(b_out));
 
 endmodule
 
