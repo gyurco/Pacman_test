@@ -89,8 +89,8 @@ localparam STATE_READ      = STATE_CMD_CONT + {2'b00,CAS_LATENCY} + 5'd2;
 localparam STATE_END       = 5'd7;  // last state in cycle
 localparam STATE_VIDREADEND = STATE_CMD_CONT+{2'b00,CAS_LATENCY}+5'd10;
 localparam STATE_VIDWRITEEND = STATE_CMD_CONT+5'd19;
-reg [4:0] t;
 
+reg [4:0] t = STATE_FIRST;
 
 // ---------------------------------------------------------------------
 // --------------------------- startup/reset ---------------------------
@@ -98,12 +98,29 @@ reg [4:0] t;
 
 // wait 1ms (32 8Mhz cycles) after FPGA config is done before going
 // into normal operation. Initialize the ram in the last 16 reset cycles (cycles 15-0)
-reg [4:0] reset;
+reg [4:0] reset = 5'h1f;
 always @(posedge clk_96 or posedge init) begin
-	if(init)
+	if(init) begin
 		reset <= 5'h1f;
-	else if((t == STATE_END) && (reset != 0))
-		reset <= reset - 5'd1;
+		t <= STATE_FIRST;
+	end
+	else
+	begin
+		t<=t+1'd1;
+
+		if (vidwrite & ~|reset) begin
+			if (t == STATE_VIDWRITEEND)
+				t <= STATE_FIRST;
+		end else if (vidread & ~|reset) begin
+			if (t == STATE_VIDREADEND)
+				t <= STATE_FIRST;
+		end else
+			if (t == STATE_END)
+				t <= STATE_FIRST;
+
+		if((t == STATE_END) && (reset != 0))
+			reset <= reset - 5'd1;
+	end
 end
 
 // ---------------------------------------------------------------------
@@ -135,24 +152,22 @@ reg [15:0] sd_data_reg;
 reg [15:0] data_latch;
 reg [22:0] addr_latch;
 reg [15:0] din_latch;
-reg        req_latch;
+reg        req_latch = 0;
 reg        rom_port;
 reg        we_latch;
-reg drive_dq;
+reg        drive_dq;
 
-reg       vidwrite_bank;
-reg       vidwrite;
-reg       vidwrite_frame;
-reg       vidwrite_next;
+reg        vidwrite_bank;
+reg        vidwrite = 0;
+reg        vidwrite_frame;
+reg        vidwrite_next;
 
-reg vidread;
-reg vidread_frame;
+reg        vidread = 0;
+reg        vidread_frame;
 
 assign vidin_ack = vidwrite_next;
 
 assign sd_data=drive_dq ? sd_data_reg : 16'bZZZZZZZZZZZZZZZZ;
-
-reg clk_8_enD;
 
 assign ready = |reset ? 1'b0 : ~init;
 
@@ -160,33 +175,20 @@ always @(posedge clk_96) begin
 	// permanently latch ram data to reduce delays
 	sd_din <= sd_data;
 	drive_dq<=1'b0;
-	sd_cmd <= CMD_INHIBIT;  // default: idle
+	sd_cmd <= CMD_NOP;  // default: idle
+	sd_dqm <= 2'b11;
 
-	t<=t+1'd1;
-
-	if (vidwrite) begin
-		if (t == STATE_VIDWRITEEND)
-			t <= STATE_FIRST;
-	end else if (vidread) begin	
-		if (t == STATE_VIDREADEND)
-			t <= STATE_FIRST;
-	end else
-		if (t == STATE_END)
-			t <= STATE_FIRST;
-
-	if(init) begin
-		t<=STATE_FIRST;
-		vidwrite<=1'b0;
-		req_latch<=1'b0;
-	end
-
-	if(init || reset != 0) begin
+	if(reset != 0) begin
 		// initialization takes place at the end of the reset phase
+		sd_ba <= 0;
 		if(t == STATE_FIRST) begin
-
 			if(reset == 13) begin
 				sd_cmd <= CMD_PRECHARGE;
 				sd_addr[10] <= 1'b1;      // precharge all banks
+			end
+
+			if(reset == 10 || reset == 8) begin
+				sd_cmd <= CMD_AUTO_REFRESH;
 			end
 
 			if(reset == 2) begin
@@ -310,14 +312,14 @@ always @(posedge clk_96) begin
 
 		if(vidread) begin
 			if(t == STATE_CMD_CONT) begin
-				sd_dqm <= 2'b00;
 				sd_addr[12:11] <= 2'b00;
 				sd_addr[10] <= 1'b1; // Auto precharge
 				sd_addr[9:0] <= {1'b0,vidout_row[2:0],vidout_col[5:3],3'b0};
 				sd_cmd <= CMD_READ;
 //				$display("vidread  (%t) column %h", $time, {1'b0,vidout_row[2:0],vidout_col[5:0]});
 			end
-			
+			if(t>=STATE_CMD_CONT) sd_dqm <= 2'b00;
+
 			if(t>=STATE_READ && t<(STATE_READ+8)) begin
 				vidout_q<=sd_din;
 				vidout_ack <= 1'b1;
