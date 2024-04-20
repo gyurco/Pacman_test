@@ -172,7 +172,7 @@ assign SDRAM2_nWE = 1;
 localparam CONF_STR = {
 	"PACMAN;;",
 	"O1,Rotate Controls,Off,On;",
-	"O23,Orientation,Vertical,Anticlockwise,Clockwise;",
+	"O23,Orientation,Vertical,Clockwise,Anticlockwise;",
 	"O45,Scanlines,Off,25%,50%,75%;",
 	"O6,Blend,Off,On;",
 	"O7,Flip,Off,On;",
@@ -194,17 +194,16 @@ wire        rotate_filter = status[48];
 assign LED = ~ioctl_downl;
 assign AUDIO_R = AUDIO_L;
 
-wire clk_sys, clk_snd, clk_sdram;
+wire clk_sys, clk_vid;
 wire pll_locked;
 pll pll(
 	.inclk0(CLOCK_27),
 	.areset(0),
-	.c0(clk_sdram),
-	.c1(clk_snd),
-	.c2(clk_sys),
+	.c0(clk_vid),
+	.c1(clk_sys),
 	.locked(pll_locked)
 	);
-assign SDRAM_CLK = clk_sdram;
+assign SDRAM_CLK = clk_vid;
 
 // reset generation
 reg reset = 1;
@@ -434,7 +433,7 @@ pacman pacman(
 	);
 
 mist_dual_video #(.COLOR_DEPTH(3),.OUT_COLOR_DEPTH(VGA_BITS),.USE_BLANKS(1'b1),.BIG_OSD(BIG_OSD),.SD_HCNT_WIDTH(10)) mist_video(
-	.clk_sys(clk_sdram),
+	.clk_sys(clk_vid),
 	.SPI_SCK(SPI_SCK),
 	.SPI_SS3(SPI_SS3),
 	.SPI_DI(SPI_DI),
@@ -451,7 +450,7 @@ mist_dual_video #(.COLOR_DEPTH(3),.OUT_COLOR_DEPTH(VGA_BITS),.USE_BLANKS(1'b1),.
 	.rotate_vfilter(rotate_filter),
 	.scandoubler_disable(scandoublerD),
 	.scanlines(scanlines),
-	.ce_divider(4'hf),
+	.ce_divider(4'h7),
 	.blend(blend),
 	.ypbpr(ypbpr),
 	.no_csync(no_csync),
@@ -469,7 +468,7 @@ mist_dual_video #(.COLOR_DEPTH(3),.OUT_COLOR_DEPTH(VGA_BITS),.USE_BLANKS(1'b1),.
 	.VGA_VS(VGA_VS),
 	.VGA_HS(VGA_HS),
 
-	.clk_sdram(clk_sdram),
+	.clk_sdram(clk_vid),
 	.sdram_init(~pll_locked),
 	.SDRAM_A(SDRAM_A),
 	.SDRAM_DQ(SDRAM_DQ),
@@ -509,7 +508,7 @@ i2c_master #(24_000_000) i2c_master (
 dac #(
 	.C_bits(10))
 dac(
-	.clk_i(clk_snd),
+	.clk_i(clk_vid),
 	.res_n_i(1),
 	.dac_i(audio),
 	.dac_o(AUDIO_L)
@@ -518,7 +517,7 @@ dac(
 `ifdef I2S_AUDIO
 i2s i2s (
 	.reset(1'b0),
-	.clk(clk_snd),
+	.clk(clk_vid),
 	.clk_rate(32'd48_000_000),
 	.sclk(I2S_BCK),
 	.lrclk(I2S_LRCK),
@@ -528,7 +527,7 @@ i2s i2s (
 );
 `ifdef I2S_AUDIO_HDMI
 assign HDMI_MCLK = 0;
-always @(posedge clk_snd) begin
+always @(posedge clk_vid) begin
 	HDMI_BCK <= I2S_BCK;
 	HDMI_LRCK <= I2S_LRCK;
 	HDMI_SDATA <= I2S_DATA;
@@ -539,7 +538,7 @@ end
 `ifdef SPDIF_AUDIO
 spdif spdif (
 	.rst_i(1'b0),
-	.clk_i(clk_snd),
+	.clk_i(clk_vid),
 	.clk_rate_i(32'd48_000_000),
 	.spdif_o(SPDIF),
 	.sample_i({2{3'd0, audio, 3'd0}})
