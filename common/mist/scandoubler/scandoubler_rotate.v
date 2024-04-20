@@ -100,37 +100,29 @@ reg hb_in_d;
 // Toggle logical / physical frame every vblank
 reg logicalframe = 1'b0;
 reg vb_d = 1'b1;
-reg vb_stb = 1'b0;
-reg hb_stb = 1'b0;
 
-always @(posedge clk_sys) begin
-	vb_stb<=1'b0;
-
+always @(posedge clk_sys) if (pe_in) begin
 	vb_d<=vb_in;
 	if(!vb_d && vb_in) begin
-		vb_stb<=1'b1;
 		logicalframe<=~logicalframe;
 		in_ypos_max<=in_ypos-1'b1;
 	end
 end
 
-always @(posedge clk_sys) begin
-	hb_stb<=1'b0;
-
+always @(posedge clk_sys) if (pe_in) begin
 	hb_in_d<=hb_in;
 	if(vb_in)
 		in_ypos<=10'd0;
 	else if(!hb_in_d && hb_in)	begin // Increment row on hblank
-		hb_stb<=1'b1;
 		in_ypos<=in_ypos+10'd1;
 		in_xpos_max <= in_xpos;
 	end
 end
 
-always @(posedge clk_sys) begin
+always @(posedge clk_sys) if (pe_in) begin
 	if(hb_in)
 		in_xpos<=10'd0;
-	else if(pe_in)
+	else
 		in_xpos<=in_xpos+10'd1;	// Increment column on pixel enable
 end
 
@@ -235,7 +227,7 @@ always @(posedge clk_sys) begin
 	hb_sd_d<=hb_sd;
 	vs_sd_d<=vs_sd;
 
-	sd_ypos <= rotation[0] ? vi_whole : in_xpos_max-vi_whole;
+	sd_ypos <= rotation[0] ? vi_whole : in_xpos_max-vi_whole - 1'd1;
 	
 	if(!vb_sd && !hb_sd_d && hb_sd) begin // Increment row on hblank
 		hb_sd_stb<=1'b1;
