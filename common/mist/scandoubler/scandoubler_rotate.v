@@ -120,9 +120,9 @@ always @(posedge clk_sys) if (pe_in) begin
 end
 
 always @(posedge clk_sys) if (pe_in) begin
-	if(hb_in)
+	if(hb_in && rowwptr[3:0] == 0)
 		in_xpos<=10'd0;
-	else
+	else if (!hb_in)
 		in_xpos<=in_xpos+10'd1;	// Increment column on pixel enable
 end
 
@@ -153,14 +153,15 @@ always @(posedge clk_sys) begin
 	end
 
 	// Write incoming pixels to a line buffer
-	if(running && pe_in && !vb_in && !hb_in) begin
+	if(running && pe_in && !vb_in && (!hb_in || rowwptr[3:0] != 0)) begin
 		rowbuf[rowwptr]<=vin_rgb565;
-		if((rowwptr[3:0]==4'b1111) || (hb_in & !hb_in_d)) begin
+		rowwptr<=rowwptr+1'b1;
+		if(rowwptr[3:0]==4'b1111) begin
 			vidin_col<=in_xpos;
 			vidin_req<=1'b1;
 			rowrptr<={rowwptr[4],4'b0000};
+			if (hb_in) rowwptr <= 0;
 		end
-		rowwptr<=rowwptr+1'b1;
 	end
 
 	// Write pixels from linebuffer to SDRAM
